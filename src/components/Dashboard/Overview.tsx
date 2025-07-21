@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -28,33 +28,87 @@ import {
   Calendar,
   Clock,
 } from 'lucide-react';
-
-// Mock data for demo
-const mockMetrics = [
-  { name: 'Tasks Completed', value: 24, change: '+12%', trend: 'up' },
-  { name: 'Total Revenue', value: '$12,340', change: '+5.2%', trend: 'up' },
-  { name: 'Active Projects', value: 8, change: '-2', trend: 'down' },
-  { name: 'Team Productivity', value: '92%', change: '+3%', trend: 'up' },
-];
-
-const weeklyData = [
-  { name: 'Mon', tasks: 4, revenue: 240 },
-  { name: 'Tue', tasks: 6, revenue: 380 },
-  { name: 'Wed', tasks: 8, revenue: 520 },
-  { name: 'Thu', tasks: 5, revenue: 340 },
-  { name: 'Fri', tasks: 9, revenue: 610 },
-  { name: 'Sat', tasks: 3, revenue: 180 },
-  { name: 'Sun', tasks: 2, revenue: 120 },
-];
-
-const categoryData = [
-  { name: 'Development', value: 40, color: '#3b82f6' },
-  { name: 'Design', value: 25, color: '#10b981' },
-  { name: 'Marketing', value: 20, color: '#f59e0b' },
-  { name: 'Planning', value: 15, color: '#ef4444' },
-];
+import { tasksAPI } from '@/api/tasks';
+import { transactionsAPI } from '@/api/transactions';
+import { metricsAPI } from '@/api/metrics';
+import { remindersAPI } from '@/api/reminders';
 
 const Overview = () => {
+  const [tasks, setTasks] = useState([]);
+  const [transactions, setTransactions] = useState([]);
+  const [metrics, setMetrics] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [reminders, setReminders] = useState([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [tasksData, transactionsData, metricsData] = await Promise.all([
+          tasksAPI.getAll(),
+          transactionsAPI.getAll(),
+          metricsAPI.getAll(),
+        ]);
+        setTasks(tasksData);
+        setTransactions(transactionsData);
+        setMetrics(metricsData);
+        setLoading(false);
+      } catch (error) {
+        setLoading(false);
+      }
+    };
+    fetchData();
+
+    const fetchReminders = async () => {
+      try {
+        const data = await remindersAPI.getAll();
+        setReminders(data);
+      } catch (error) {
+        setReminders([]);
+      }
+    };
+    fetchReminders();
+  }, []);
+
+  // Key Metrics
+  const completedTasks = tasks.filter((t) => t.status === 'completed').length;
+  const totalRevenue = transactions.filter((t) => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
+  const activeProjects = metrics.filter((m) => m.category === 'Project').length;
+  const productivity = tasks.length > 0 ? `${Math.round((completedTasks / tasks.length) * 100)}%` : '0%';
+
+  const keyMetrics = [
+    { name: 'Tasks Completed', value: completedTasks, change: '', trend: 'up' },
+    { name: 'Total Revenue', value: ` ₹${totalRevenue.toLocaleString()}`, change: '', trend: 'up' },
+    { name: 'Active Projects', value: activeProjects, change: '', trend: 'up' },
+    { name: 'Team Productivity', value: productivity, change: '', trend: 'up' },
+  ];
+
+  // Weekly Performance Chart Data
+  const getWeeklyData = () => {
+    // Group tasks and revenue by weekday
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const week = Array(7).fill(0).map((_, i) => ({ name: days[i], tasks: 0, revenue: 0 }));
+    tasks.forEach((task) => {
+      const d = new Date(task.createdAt).getDay();
+      week[d].tasks += 1;
+    });
+    transactions.forEach((tx) => {
+      const d = new Date(tx.date).getDay();
+      if (tx.type === 'income') week[d].revenue += tx.amount;
+    });
+    return week;
+  };
+
+  // Task Distribution by Category
+  const getCategoryData = () => {
+    const catMap = {};
+    tasks.forEach((task) => {
+      const cat = task.priority || 'Other';
+      catMap[cat] = (catMap[cat] || 0) + 1;
+    });
+    const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#6366f1'];
+    return Object.entries(catMap).map(([name, value], i) => ({ name, value, color: colors[i % colors.length] }));
+  };
+
   const [recentTasks] = useState([
     { id: 1, title: 'Complete project proposal', status: 'completed', priority: 'high' },
     { id: 2, title: 'Review design mockups', status: 'in-progress', priority: 'medium' },
@@ -68,11 +122,36 @@ const Overview = () => {
     { id: 3, title: 'Market research notes', createdAt: '2024-01-13' },
   ]);
 
-  const [upcomingReminders] = useState([
-    { id: 1, title: 'Board meeting', time: '2024-01-16 10:00', priority: 'high' },
-    { id: 2, title: 'Project deadline', time: '2024-01-17 17:00', priority: 'medium' },
-    { id: 3, title: 'Client call', time: '2024-01-16 14:30', priority: 'high' },
-  ]);
+  // Show next 3 upcoming reminders (not completed, future time)
+  const upcomingReminders = reminders
+    .filter(r => !r.isCompleted && new Date(r.reminderTime) > new Date())
+    .sort((a, b) => new Date(a.reminderTime) - new Date(b.reminderTime))
+    .slice(0, 3);
+
+  // Mock data for demo
+  const mockMetrics = [
+    { name: 'Tasks Completed', value: 24, change: '+12%', trend: 'up' },
+    { name: 'Total Revenue', value: '₹12,340', change: '+5.2%', trend: 'up' },
+    { name: 'Active Projects', value: 8, change: '-2', trend: 'down' },
+    { name: 'Team Productivity', value: '92%', change: '+3%', trend: 'up' },
+  ];
+
+  const weeklyData = [
+    { name: 'Mon', tasks: 4, revenue: 240 },
+    { name: 'Tue', tasks: 6, revenue: 380 },
+    { name: 'Wed', tasks: 8, revenue: 520 },
+    { name: 'Thu', tasks: 5, revenue: 340 },
+    { name: 'Fri', tasks: 9, revenue: 610 },
+    { name: 'Sat', tasks: 3, revenue: 180 },
+    { name: 'Sun', tasks: 2, revenue: 120 },
+  ];
+
+  const categoryData = [
+    { name: 'Development', value: 40, color: '#3b82f6' },
+    { name: 'Design', value: 25, color: '#10b981' },
+    { name: 'Marketing', value: 20, color: '#f59e0b' },
+    { name: 'Planning', value: 15, color: '#ef4444' },
+  ];
 
   return (
     <div className="space-y-6">
@@ -248,23 +327,27 @@ const Overview = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {upcomingReminders.map((reminder) => (
-                <div key={reminder.id} className="flex items-center justify-between">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{reminder.title}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Clock className="h-3 w-3 text-muted-foreground" />
-                      <span className="text-xs text-muted-foreground">{reminder.time}</span>
+              {upcomingReminders.length === 0 ? (
+                <div className="text-muted-foreground text-sm">No upcoming reminders.</div>
+              ) : (
+                upcomingReminders.map((reminder) => (
+                  <div key={reminder.id} className="flex items-center justify-between">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{reminder.title}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Clock className="h-3 w-3 text-muted-foreground" />
+                        <span className="text-xs text-muted-foreground">{new Date(reminder.reminderTime).toLocaleString()}</span>
+                      </div>
                     </div>
+                    <Badge 
+                      variant={reminder.priority === 'high' ? 'destructive' : 'secondary'}
+                      className="text-xs"
+                    >
+                      {reminder.priority || ''}
+                    </Badge>
                   </div>
-                  <Badge 
-                    variant={reminder.priority === 'high' ? 'destructive' : 'secondary'}
-                    className="text-xs"
-                  >
-                    {reminder.priority}
-                  </Badge>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </CardContent>
         </Card>
@@ -293,7 +376,7 @@ const Overview = () => {
             <div>
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm font-medium">Daily Revenue Target</span>
-                <span className="text-sm text-muted-foreground">$450/$600</span>
+                <span className="text-sm text-muted-foreground">₹450/₹600</span>
               </div>
               <Progress value={75} className="h-2" />
             </div>

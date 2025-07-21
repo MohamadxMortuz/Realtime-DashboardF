@@ -278,7 +278,7 @@ const MetricsPage = () => {
 
       {/* Metrics Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {metrics.map((metric) => (
+        {mockMetrics.map((metric) => (
           <Card key={metric.id} className="metric-card group">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <div className="flex items-center gap-2">
@@ -338,7 +338,7 @@ const MetricsPage = () => {
           <ResponsiveContainer width="100%" height={300}>
             <BarChart
               data={Object.entries(
-                metrics.reduce((acc, metric) => {
+                mockMetrics.reduce((acc, metric) => {
                   acc[metric.category] = (acc[metric.category] || 0) + 1;
                   return acc;
                 }, {} as Record<string, number>)

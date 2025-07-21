@@ -323,7 +323,7 @@ const FinancePage = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-success">
-              ${totalIncome.toLocaleString()}
+              ₹{totalIncome.toLocaleString()}
             </div>
             <p className="text-xs text-muted-foreground">
               This month
@@ -338,7 +338,7 @@ const FinancePage = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-destructive">
-              ${totalExpenses.toLocaleString()}
+              ₹{totalExpenses.toLocaleString()}
             </div>
             <p className="text-xs text-muted-foreground">
               This month
@@ -353,7 +353,7 @@ const FinancePage = () => {
           </CardHeader>
           <CardContent>
             <div className={`text-2xl font-bold ${netBalance >= 0 ? 'text-success' : 'text-destructive'}`}>
-              ${netBalance.toLocaleString()}
+              ₹{netBalance.toLocaleString()}
             </div>
             <p className="text-xs text-muted-foreground">
               {netBalance >= 0 ? 'Surplus' : 'Deficit'}
@@ -485,7 +485,7 @@ const FinancePage = () => {
                   <span className={`font-bold ${
                     transaction.type === 'income' ? 'text-success' : 'text-destructive'
                   }`}>
-                    {transaction.type === 'income' ? '+' : '-'}${transaction.amount.toLocaleString()}
+                    {transaction.type === 'income' ? '+' : '-'}₹{transaction.amount.toLocaleString()}
                   </span>
                   <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <Button

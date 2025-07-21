@@ -90,9 +90,10 @@ const NotesPage = () => {
     setFormData({
       title: note.title,
       content: note.content,
-      tags: note.tags.join(', '),
+      tags: (note.tags ?? []).join(', '),
     });
     setIsDialogOpen(true);
+    setSelectedNote(null); // Close detail dialog if open
   };
 
   const handleDelete = async (id: string) => {
@@ -124,7 +125,7 @@ const NotesPage = () => {
     return (
       note.title.toLowerCase().includes(query) ||
       note.content.toLowerCase().includes(query) ||
-      note.tags.some(tag => tag.toLowerCase().includes(query))
+      (Array.isArray(note.tags) ? note.tags : []).some(tag => tag.toLowerCase().includes(query))
     );
   });
 

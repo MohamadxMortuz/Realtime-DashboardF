@@ -49,7 +49,22 @@ const RemindersPage = () => {
   const fetchReminders = async () => {
     try {
       const data = await remindersAPI.getAll();
-      setReminders(data);
+      // Map backend fields to frontend Reminder type
+      const mapped = data.map((reminder: any) => ({
+        id: reminder.id,
+        title: reminder.title,
+        description: reminder.message ?? reminder.description ?? '',
+        // Use the reminder.remindAt as local time string
+        reminderTime: reminder.remindAt
+          ? reminder.remindAt.replace('Z', '') // Remove Z if present
+          : reminder.reminderTime
+            ? reminder.reminderTime.replace('Z', '')
+            : new Date().toISOString(),
+        isCompleted: reminder.isCompleted ?? false,
+        taskId: reminder.taskId,
+        createdAt: reminder.createdAt ?? '',
+      }));
+      setReminders(mapped);
       setLoading(false);
     } catch (error) {
       toast({
@@ -64,9 +79,17 @@ const RemindersPage = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      // Instead of toISOString (which converts to UTC), send a local ISO string
+      const localISO = formData.reminderTime.getFullYear() + '-' +
+        String(formData.reminderTime.getMonth() + 1).padStart(2, '0') + '-' +
+        String(formData.reminderTime.getDate()).padStart(2, '0') + 'T' +
+        String(formData.reminderTime.getHours()).padStart(2, '0') + ':' +
+        String(formData.reminderTime.getMinutes()).padStart(2, '0') + ':00';
       const reminderData = {
-        ...formData,
-        reminderTime: formData.reminderTime.toISOString(),
+        message: formData.description, // Backend expects 'message'
+        remindAt: localISO, // Send local time string
+        title: formData.title,
+        taskId: formData.taskId || undefined,
         isCompleted: false,
       };
 
@@ -173,9 +196,8 @@ const RemindersPage = () => {
   const getTimeDisplay = (reminderTime: string) => {
     const time = new Date(reminderTime);
     const now = new Date();
-    
     if (isBefore(time, now)) {
-      return `${format(time, 'MMM d, h:mm a')} (Overdue)`;
+      return `${format(time, 'MMM d, h:mm a')}`;
     } else {
       return format(time, 'MMM d, h:mm a');
     }
